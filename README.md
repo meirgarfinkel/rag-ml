@@ -1,4 +1,4 @@
-# RAG-ML: Retrieval-Augmented Generation Demo with FastAPI
+# RAG-ML: Retrieval-Augmented Generation Demo
 
 ## Overview
 A minimal but functional Retrieval-Augmented Generation (RAG) pipeline backend built with FastAPI and Python.
@@ -20,12 +20,9 @@ Users can query a document corpus with semantic search + LLM-generated answers v
 - Pop!_OS, Ubuntu or macOS environments supported
 
 ### Installation
-git clone git@github.com:meirgarfinkel/rag-ml.git
-cd rag-ml
-poetry install --no-root
-poetry run uvicorn main:app --reload --port 8000
-
-Open your browser at http://localhost:8000/docs to explore the automatic Swagger UI docs.
+- In your terminal run: `git clone git@github.com:meirgarfinkel/rag-ml.git && cd rag-ml && poetry install --no-root`
 
 ## Usage
+- poetry run uvicorn main:app --reload --port 8000
+- Open your browser at http://localhost:8000/docs to explore the automatic Swagger UI docs.
 - Send POST requests to `/v1/query` with JSON payload `{"question": "YOUR QUERY HERE"}` to get RAG answers.
