@@ -1,0 +1,25 @@
+[project]
+name = "rag-ml"
+version = "0.0.1"
+description = ""
+authors = [
+    {name = "Meir Garfinkel",email = "meirgarfinkel@gmail.com"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi (>=0.124.0,<0.125.0)",
+    "uvicorn (>=0.38.0,<0.39.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "pytest (>=9.0.2,<10.0.0)",
+    "ruff (>=0.14.8,<0.15.0)"
+]
