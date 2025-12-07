@@ -23,6 +23,6 @@ Users can query a document corpus with semantic search + LLM-generated answers v
 - In your terminal run: `git clone git@github.com:meirgarfinkel/rag-ml.git && cd rag-ml && poetry install --no-root`
 
 ## Usage
-- poetry run uvicorn main:app --reload --port 8000
+- `poetry run uvicorn main:app --reload --port 8000`
 - Open your browser at http://localhost:8000/docs to explore the automatic Swagger UI docs.
 - Send POST requests to `/v1/query` with JSON payload `{"question": "YOUR QUERY HERE"}` to get RAG answers.
