@@ -1,0 +1,7 @@
+Retrieval-Augmented Generation (RAG) combines retrieval of relevant documents with generative AI models.
+
+RAG works by embedding documents into vectors using models like sentence-transformers/all-MiniLM-L6-v2. 
+These vectors are stored in FAISS for fast similarity search.
+
+Queries are embedded and matched against document vectors to retrieve relevant context. 
+GPT-4o-mini then generates answers grounded in this context.
