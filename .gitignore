@@ -10,6 +10,7 @@ __pycache__/
 venv/
 env/
 ENV/
+.env
 
 # IDEs / Editors
 .vscode/
@@ -33,3 +34,6 @@ faiss_index*
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Poetry
+.poetry
