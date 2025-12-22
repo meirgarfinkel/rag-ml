@@ -113,6 +113,25 @@ class VectorStore:
 
         return results
 
+    def reset(self, *, keep_dimension: bool = True) -> None:
+        """
+        Reset the vector store.
+        - Clears all embeddings and metadata.
+        - Recreates the FAISS index if a dimension is known.
+        - If keep_dimension=False, fully uninitializes the store.
+        """
+        if keep_dimension and self.dimension > 0:
+            self.index = faiss.IndexFlatIP(self.dimension)
+            self.metadata = []
+            logger.info(
+                "Vector store reset (dimension preserved: %d)", self.dimension
+            )
+        else:
+            self.index = None
+            self.metadata = []
+            self.dimension = 0
+            logger.info("Vector store fully reset (uninitialized)")
+
     @property
     def ntotal(self) -> int:
         """Total number of vectors in the index."""

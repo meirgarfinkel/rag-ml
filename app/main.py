@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api.v1 import ingest, query, health
+from app.api.v1 import ingest, query, health, admin
 from app.core.config import settings
 from app.core.deps import set_embedding_model, set_vector_store
 from app.services.embedding_service import load_embedding_model
@@ -56,7 +56,7 @@ async def lifespan(app: FastAPI):
         if vector_store is not None:
             try:
                 logger.info("Saving vector store")
-                save_vector_store(vector_store, vector_store.metadata, settings)
+                save_vector_store(vector_store, settings)
             except Exception:
                 logger.exception("Failed to save vector store during shutdown")
 
@@ -81,6 +81,7 @@ app = FastAPI(
 app.include_router(ingest.router, prefix="/api/v1/ingest", tags=["ingest"])
 app.include_router(query.router, prefix="/api/v1/query", tags=["query"])
 app.include_router(health.router, prefix="/api/v1/health", tags=["health"])
+app.include_router(admin.router, tags=["admin"], include_in_schema=False)
 
 # -------------------------------------------------
 # Frontend (static)

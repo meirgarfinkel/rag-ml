@@ -9,9 +9,10 @@
 <body>
 
   <nav>
+    <a class="nav-title">RAG-ML</a>
     <a href="/">Home</a>
     <a href="/ingest.html">Ingest</a>
-    <a href="/docs">API Docs</a>
+    <a href="/docs">Docs</a>
   </nav>
 
   <div class="app">
@@ -23,26 +24,23 @@
     <label for="docId">Document ID (optional)</label>
     <input id="docId" placeholder="e.g. onboarding-doc" />
 
-    <div class="row">
-      <div>
-        <label for="chunkSize">Chunk Size</label>
-        <input id="chunkSize" type="number" value="512" />
-      </div>
-
-      <div>
-        <label for="chunkOverlap">Chunk Overlap</label>
-        <input id="chunkOverlap" type="number" value="50" />
-      </div>
-    </div>
-
     <button id="ingestBtn">Ingest</button>
     <button id="demoBtn" class="secondary">Load Demo Dataset</button>
 
     <div id="result" class="result" style="display:none;"></div>
+
+    <label for="adminKey">Admin key</label>
+    <input id="adminKey" type="password" placeholder="Admin key" />
+
+    <button id="resetBtn" class="secondary">
+      Reset knowledge base
+    </button>
+
+    <div id="resetResult" class="result" style="display:none;"></div>
   </div>
 
   <footer>
-    Powered by FAISS + GPT-4o-mini
+    Created by: Meir Garfinkel
   </footer>
 
   <script>
@@ -65,8 +63,6 @@
           body: JSON.stringify({
             text,
             doc_id: document.getElementById("docId").value || null,
-            chunk_size: Number(document.getElementById("chunkSize").value),
-            chunk_overlap: Number(document.getElementById("chunkOverlap").value)
           })
         });
 
@@ -92,6 +88,41 @@
         resultBox.textContent = "Error loading demo dataset.";
       } finally {
         demoBtn.disabled = false;
+      }
+    });
+  </script>
+  <script>
+    const resetBtn = document.getElementById("resetBtn");
+    const adminKeyInput = document.getElementById("adminKey");
+    const resetResult = document.getElementById("resetResult");
+
+    resetBtn.addEventListener("click", async () => {
+      const adminKey = adminKeyInput.value.trim();
+      if (!adminKey) return;
+
+      resetBtn.disabled = true;
+      resetResult.style.display = "block";
+      resetResult.textContent = "Resetting…";
+
+      try {
+        const res = await fetch("/api/v1/admin/reset", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ admin_key: adminKey })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          resetResult.textContent = data.detail || "Reset failed";
+        } else {
+          resetResult.textContent = "Knowledge base cleared successfully";
+          adminKeyInput.value = "";
+        }
+      } catch (err) {
+        resetResult.textContent = "Error contacting server";
+      } finally {
+        resetBtn.disabled = false;
       }
     });
   </script>
