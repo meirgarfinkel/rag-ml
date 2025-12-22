@@ -2,132 +2,89 @@ import logging
 import re
 from typing import List, Dict, Literal
 
+from app.core.config import settings
 from app.services.embedding_service import EmbeddingModel
-from app.services.vector_store import VectorStore
+from app.services.vector_store import save_vector_store, VectorStore
 
 logger = logging.getLogger(__name__)
 
-MIN_CHUNK_LENGTH = 20
-ChunkingStrategy = Literal["fixed", "sentence"]
+MIN_CHUNK_SIZE = 520
+CHUNK_SIZE = 600
+MAX_CHUNK_SIZE = 680
+OVERLAPP_SIZE = 80
 
 
-# -------------------------------------------------
-# Chunking strategies
-# -------------------------------------------------
-
-
-def fixed_chunk_text(
-    text: str,
-    chunk_size: int,
-    chunk_overlap: int,
-) -> List[str]:
-    """Deterministic fixed-size overlapping chunker."""
-
-    if not isinstance(text, str):
-        raise TypeError("text must be a string")
-
-    text = text.strip()
-    if not text:
-        return []
-
-    if chunk_size <= 0:
-        raise ValueError("chunk_size must be > 0")
-
-    if chunk_overlap < 0 or chunk_overlap >= chunk_size:
-        raise ValueError("chunk_overlap must be >= 0 and < chunk_size")
-
-    if len(text) <= chunk_size:
-        return [text]
-
-    chunks: List[str] = []
-    step = chunk_size - chunk_overlap
-    start = 0
-
-    while start < len(text):
-        end = min(start + chunk_size, len(text))
-        chunk = text[start:end].strip()
-
-        if len(chunk) >= MIN_CHUNK_LENGTH:
-            chunks.append(chunk)
-
-        start += step
-
-    return chunks
-
-
-def sentence_aware_chunk_text(
-    text: str,
-    chunk_size: int,
-    chunk_overlap: int,
-) -> List[str]:
+def chunk_text(text: str) -> List[str]:
     """
-    Sentence-aware chunking with hard size limits.
-    Uses simple regex sentence splitting.
+    Sentence-aware text chunker with overlap and size constraints.
+
+    Invariants:
+    - No chunk exceeds MAX_CHUNK_SIZE
+    - Chunks aim for CHUNK_SIZE when possible
+    - Chunks smaller than MIN_CHUNK_SIZE are avoided unless forced
+    - Overlap is preserved between adjacent chunks
+    - Word boundaries are respected unless unavoidable
+
+    Returns:
+        List[str]: Ordered list of chunks
     """
 
     if not isinstance(text, str):
         raise TypeError("text must be a string")
-
-    text = text.strip()
-    if not text:
-        return []
-
-    if chunk_size <= 0:
-        raise ValueError("chunk_size must be > 0")
-
-    if chunk_overlap < 0 or chunk_overlap >= chunk_size:
-        raise ValueError("chunk_overlap must be >= 0 and < chunk_size")
 
     sentences = re.split(r"(?<=[.!?])\s+", text)
-
     chunks: List[str] = []
+
     current = ""
+    prev_overlap = ""
 
     for sentence in sentences:
         if not sentence:
             continue
 
-        if len(current) + len(sentence) > chunk_size:
-            if len(current) >= MIN_CHUNK_LENGTH:
-                chunks.append(current.strip())
-            current = sentence
-        else:
-            current = f"{current} {sentence}".strip()
+        while sentence:
+            combined_len = len(current) + (1 if current else 0) + len(sentence)
 
-    if len(current) >= MIN_CHUNK_LENGTH:
+            # Case 1: Fits cleanly under soft target
+            if combined_len <= CHUNK_SIZE:
+                current = f"{current} {sentence}".strip() if current else sentence
+                sentence = ""
+
+            # Case 2: Fits under hard limit → finalize chunk
+            elif combined_len <= MAX_CHUNK_SIZE:
+                current = f"{current} {sentence}".strip() if current else sentence
+                chunks.append(current)
+                prev_overlap = current[-OVERLAPP_SIZE:]
+                current = prev_overlap
+                sentence = ""
+
+            # Case 3: Current is already useful → emit it
+            elif len(current) >= MIN_CHUNK_SIZE:
+                chunks.append(current.strip())
+                prev_overlap = current[-OVERLAPP_SIZE:]
+                current = prev_overlap
+
+            # Case 4: Forced split (sentence too large, current too small)
+            else:
+                sentence = f"{current} {sentence}".strip() if current else sentence
+                split_pos = sentence.rfind(" ", 0, CHUNK_SIZE)
+
+                # Unavoidable hard split
+                if split_pos == -1:
+                    split_pos = CHUNK_SIZE
+
+                part, sentence = sentence[:split_pos].strip(), sentence[split_pos:].strip()
+                chunks.append(part)
+                prev_overlap = part[-OVERLAPP_SIZE:]
+                current = prev_overlap
+
+                if len(current) + len(sentence) < MIN_CHUNK_SIZE:
+                    current = f"{current} {sentence}".strip()
+                    sentence = ""
+    if current:
         chunks.append(current.strip())
 
-    # Optional overlap (character-based)
-    if chunk_overlap > 0 and len(chunks) > 1:
-        overlapped: List[str] = []
-        for i, chunk in enumerate(chunks):
-            if i == 0:
-                overlapped.append(chunk)
-                continue
-
-            prev = chunks[i - 1]
-            overlap_text = prev[-chunk_overlap:]
-            combined = f"{overlap_text} {chunk}".strip()
-            overlapped.append(combined[:chunk_size])
-
-        chunks = overlapped
-
     return chunks
-
-
-def chunk_text(
-    text: str,
-    chunk_size: int,
-    chunk_overlap: int,
-    strategy: ChunkingStrategy = "sentence",
-) -> List[str]:
-    """Dispatch chunking strategy."""
-    if strategy == "sentence":
-        return sentence_aware_chunk_text(text, chunk_size, chunk_overlap)
-    if strategy == "fixed":
-        return fixed_chunk_text(text, chunk_size, chunk_overlap)
-
-    raise ValueError(f"Unknown chunking strategy: {strategy}")
 
 
 # -------------------------------------------------
@@ -138,17 +95,15 @@ def chunk_text(
 def process_text(
     text: str,
     doc_id: str,
-    chunk_size: int,
-    chunk_overlap: int,
     embedding_model: EmbeddingModel,
-    vector_store: VectorStore,
-    chunking_strategy: ChunkingStrategy = "sentence",
+    vector_store: VectorStore
 ) -> Dict[str, int]:
     """
     Chunk text, embed chunks, and store vectors.
     """
 
-    if not text.strip():
+    text = text.strip()
+    if not text:
         return {
             "chunks_added": 0,
             "total_docs": vector_store.ntotal,
@@ -158,17 +113,10 @@ def process_text(
         "Processing document '%s' (%d chars) using %s chunking",
         doc_id,
         len(text),
-        chunking_strategy,
     )
 
     # Step 1: Chunk
-    chunks = chunk_text(
-        text=text,
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
-        strategy=chunking_strategy,
-    )
-
+    chunks = chunk_text(text)
     logger.info("Created %d chunks", len(chunks))
 
     if not chunks:
@@ -203,14 +151,13 @@ def process_text(
             "text": chunk,
             "doc_id": doc_id,
             "chunk_index": i,
-            "chunk_size": len(chunk),
-            "chunking_strategy": chunking_strategy,
         }
         for i, chunk in enumerate(chunks)
     ]
 
     # Step 4: Store
     vector_store.add_embeddings(embeddings, metadatas)
+    save_vector_store(vector_store, settings)
 
     return {
         "chunks_added": len(embeddings),

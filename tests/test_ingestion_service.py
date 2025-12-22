@@ -2,8 +2,7 @@ from unittest.mock import Mock
 
 from app.services.ingestion_service import (
     process_text,
-    sentence_aware_chunk_text,
-    fixed_chunk_text,
+    chunk_text,
 )
 from app.services.vector_store import VectorStore
 
@@ -13,44 +12,26 @@ from app.services.vector_store import VectorStore
 # -------------------------------------------------
 
 
-def test_sentence_aware_chunking_basic():
+def test_chunks_text():
     text = (
         "This is the first sentence. "
         "This is the second sentence. "
         "This is the third sentence."
     )
 
-    chunks = sentence_aware_chunk_text(
-        text=text,
-        chunk_size=60,
-        chunk_overlap=0,
-    )
+    chunks = chunk_text(text=text)
 
     assert len(chunks) >= 1
     assert all(isinstance(c, str) for c in chunks)
     assert all(len(c) >= 20 for c in chunks)
 
 
-def test_fixed_chunking_basic():
-    text = "A" * 200
+def test_small_input_not_dropped():
+    text = "Short meaningful sentence."
+    chunks = chunk_text(text)
 
-    chunks = fixed_chunk_text(
-        text=text,
-        chunk_size=50,
-        chunk_overlap=10,
-    )
-
-    assert len(chunks) > 1
-    assert all(len(c) <= 50 for c in chunks)
-
-
-def test_chunking_empty_text():
-    chunks = sentence_aware_chunk_text(
-        text="   ",
-        chunk_size=100,
-        chunk_overlap=10,
-    )
-    assert chunks == []
+    assert len(chunks) == 1
+    assert chunks[0] == text
 
 
 # -------------------------------------------------
@@ -69,8 +50,6 @@ def test_process_text_no_chunks():
     result = process_text(
         text="   ",
         doc_id="doc1",
-        chunk_size=100,
-        chunk_overlap=10,
         embedding_model=embedding_model,
         vector_store=vector_store,
     )
@@ -102,15 +81,12 @@ def test_process_text_happy_path_sentence_chunking():
     result = process_text(
         text=text,
         doc_id="doc123",
-        chunk_size=50,
-        chunk_overlap=0,
         embedding_model=embedding_model,
         vector_store=vector_store,
-        chunking_strategy="sentence",
     )
 
-    assert result["chunks_added"] == 2
-    assert result["total_docs"] == 2
+    assert result["chunks_added"] >= 1
+    assert result["total_docs"] == result["chunks_added"]
 
     embedding_model.embed_batch.assert_called_once()
     vector_store.add_embeddings.assert_called_once()
@@ -120,7 +96,6 @@ def test_process_text_happy_path_sentence_chunking():
     assert len(embeddings_arg) == len(metadata_arg)
     assert metadata_arg[0]["doc_id"] == "doc123"
     assert metadata_arg[0]["chunk_index"] == 0
-    assert metadata_arg[0]["chunking_strategy"] == "sentence"
 
 
 def test_process_text_fixed_chunking():
@@ -142,11 +117,8 @@ def test_process_text_fixed_chunking():
     result = process_text(
         text=text,
         doc_id="doc_fixed",
-        chunk_size=80,
-        chunk_overlap=20,
         embedding_model=embedding_model,
         vector_store=vector_store,
-        chunking_strategy="fixed",
     )
 
     assert result["chunks_added"] > 0
@@ -168,8 +140,6 @@ def test_process_text_embedding_count_mismatch_is_graceful():
     result = process_text(
         text="This is a valid chunkable sentence. " * 3,
         doc_id="doc_partial",
-        chunk_size=50,
-        chunk_overlap=0,
         embedding_model=embedding_model,
         vector_store=vector_store,
     )

@@ -69,8 +69,6 @@ def inject_dependencies(mock_embedding_model, mock_vector_store):
 def test_ingest_text_success(client, mock_vector_store):
     payload = {
         "text": "This is a test document. " * 20,
-        "chunk_size": 200,
-        "chunk_overlap": 50,
     }
 
     response = client.post("/api/v1/ingest/text", json=payload)

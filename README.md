@@ -26,7 +26,7 @@ The project emphasizes **clarity, correctness, and real-world architecture** rat
 The system implements a classic Retrieval-Augmented Generation (RAG) pipeline with a clean separation of concerns:
 
 **1. Ingestion**
-* Raw text is chunked using configurable size and overlap.
+* Raw text is chunked using a sentence-aware algorithm.
 * Chunks are embedded via an embedding model.
 * Embeddings are stored in a FAISS vector index alongside document metadata.
 
@@ -65,7 +65,7 @@ The backend is exposed via a FastAPI REST API and serves a minimal static fronte
 * `poetry install`
 * Create `.env` file in root of project: `touch .env`
 * Add `OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxx` to the `.env` file.
-* `poetry run uvicorn app.main:app --reload`
+* `poetry run uvicorn app.main:app --reload --reload-exclude "tests/*"`
 * Access the frontend at http://localhost:8000/
 
 ## License

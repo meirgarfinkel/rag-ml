@@ -24,8 +24,6 @@ router = APIRouter(prefix="", tags=["ingest"])
 class TextRequest(BaseModel):
     text: str = Field(..., min_length=1)
     doc_id: Optional[str] = None
-    chunk_size: int = Field(512, ge=100, le=2048)
-    chunk_overlap: int = Field(50, ge=0, le=512)
 
 
 # -------------------------------------------------
@@ -60,8 +58,6 @@ async def ingest_text(
         result = process_text(
             text=request.text,
             doc_id=doc_id,
-            chunk_size=request.chunk_size,
-            chunk_overlap=request.chunk_overlap,
             embedding_model=embedding_model,
             vector_store=vector_store,
         )
@@ -106,8 +102,6 @@ async def ingest_demo(
         result = process_text(
             text=demo_text,
             doc_id="demo-dataset",
-            chunk_size=512,
-            chunk_overlap=50,
             embedding_model=embedding_model,
             vector_store=vector_store,
         )
