@@ -1,25 +1,30 @@
 # Python
 __pycache__/
 *.py[cod]
+.pytest_cache/
+tests/
 
-# Virtualenvs
+# Virtual environments
 .venv/
 venv/
 
-# Git
-.git/
-.gitignore
-
-# Env / secrets
+# Environment / secrets
 .env
 .env.*
 
-# IDE
+# Git internals
+.git/
+.gitignore
+
+# IDEs / editors
 .vscode/
 .idea/
 
-# OS
+# OS files
 .DS_Store
 
-# Node (frontend build)
+# Node / frontend
 node_modules/
+
+# Vector store artifacts
+data/vectorstore/
